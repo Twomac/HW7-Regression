@@ -1,3 +1,5 @@
+[![Project Tests](https://github.com/Twomac/HW7-Regression/actions/workflows/ci.yml/badge.svg)](https://github.com/Twomac/HW7-Regression/actions/workflows/ci.yml)
+
 # HW 7: logistic regression
 
 In this assignment, you'll implement a classifier using logistic regression, optimized with gradient descent.
