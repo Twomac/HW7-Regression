@@ -33,7 +33,7 @@ class BaseRegressor():
     def train_model(self, X_train, y_train, X_val, y_val):
 
         # Padding data with vector of ones for bias term
-        X_train = np.hstack([X_train, np.ones((X_train.shape[0], 1))])
+        X_train = np.hstack([X_train, np.ones((X_train.shape[0], 1))])  # adding column of ones at the end as bias "feature"
         X_val = np.hstack([X_val, np.ones((X_val.shape[0], 1))])
     
         # Defining intitial values for while loop
@@ -51,23 +51,23 @@ class BaseRegressor():
 
             # Create batches
             num_batches = int(X_train.shape[0] / self.batch_size) + 1
-            X_batch = np.array_split(X_train, num_batches)
-            y_batch = np.array_split(y_train, num_batches)
+            X_batches = np.array_split(X_train, num_batches)
+            y_batches = np.array_split(y_train, num_batches)
 
             # Create list to save the parameter update sizes for each batch
             update_sizes = []
 
             # Iterate through batches (one of these loops is one epoch of training)
-            for X_train, y_train in zip(X_batch, y_batch):
+            for X_batch, y_batch in zip(X_batches, y_batches):
 
                 # Make prediction and calculate loss
-                y_pred = self.make_prediction(X_train)
-                train_loss = self.loss_function(y_train, y_pred)
+                y_pred = self.make_prediction(X_batch)
+                train_loss = self.loss_function(y_batch, y_pred)
                 self.loss_hist_train.append(train_loss)
 
                 # Update weights
                 prev_W = self.W
-                grad = self.calculate_gradient(y_train, X_train)
+                grad = self.calculate_gradient(y_batch, X_batch)
                 new_W = prev_W - self.lr * grad 
                 self.W = new_W
 
@@ -129,7 +129,9 @@ class LogisticRegressor(BaseRegressor):
         Returns: 
             The predicted labels (y_pred) for given X.
         """
-        pass
+        # suggested by VScode
+        weighted_features = X @ self.W # X is N_observation x N_features, W is N_features x 1, so the result is N_observation x 1
+        return 1 / (1 + np.exp(-weighted_features)) # Sigmoid function, vectors of probabilities of class 1 for each observation
     
     def loss_function(self, y_true, y_pred) -> float:
         """
@@ -143,7 +145,8 @@ class LogisticRegressor(BaseRegressor):
         Returns: 
             The mean loss (a single number).
         """
-        pass
+        y_pred_clip = np.clip(y_pred, 1e-15, 1 - 1e-15) # Clip predictions to avoid log(0)
+        return -np.mean(y_true * np.log(y_pred_clip) + (1 - y_true) * np.log(1 - y_pred_clip))
         
     def calculate_gradient(self, y_true, X) -> np.ndarray:
         """
@@ -157,4 +160,12 @@ class LogisticRegressor(BaseRegressor):
         Returns: 
             Vector of gradients.
         """
-        pass
+        N_observations = X.shape[0] # each row of X is an observation over all features, each column is a feature over all observations
+        y_pred = self.make_prediction(X) # this is our mapping into the probability sigmoid space
+
+        # below is a SUPER condensed formula for gradient, here we use the transpose of X to dot product 
+        # the feature column vectors directly to the error vector. I wrote 4 pages of derivations to understand
+        # why this formula is correct lol, since most sources online just take it for granted, or skip most of the
+        # multivariable chain rule calculus that you need to get to it (also NO ONE treats vectors with a consistent
+        # nomenclature in online ML blogs!)
+        return X.T @ (y_pred - y_true) / N_observations 
